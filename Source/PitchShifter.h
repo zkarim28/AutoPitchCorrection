@@ -20,7 +20,16 @@ public:
     
   PitchShifter()
   {
-      //Previously, The Constructor was filled with IGraphics initalizations for each knob and
+      fMix = 0.5;
+      fTune = 0.1;
+      fAmount = 1.0;
+      fGlide = 0.1;
+
+      for (int i = 0; i < 12; ++i) {
+          fNotes[i] = 1.0;
+      }
+      
+      //Previously, the constructor was filled with IGraphics initalizations for each knob
       init(fs);
   }
 
