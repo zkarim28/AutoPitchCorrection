@@ -1,9 +1,10 @@
 /*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin processor.
-
-  ==============================================================================
+     _______         __  __  __             _____    __       __
+    |       |.--.--.|__||  ||__|.-----.    |     |_ |  |_ .--|  |    Copyright 2023
+    |   -  _||  |  ||  ||  ||  ||  _  |    |       ||   _||  _  |    Quilio Limited
+    |_______||_____||__||__||__||_____|    |_______||____||_____|    www.quilio.dev
+                                                             
+    Quilio Software uses a commercial licence     -     see LICENCE.md for details.
 */
 
 #include "PluginProcessor.h"

@@ -453,6 +453,10 @@ public:
         fGlide = glideAmt;
     }
     
+    //TODO: implement setKey
+    
+    //TODO: implement setScale
+    
     float getMixAmount(){
         return fMix;
     }
@@ -468,6 +472,10 @@ public:
     float getGlideAmount(){
         return fGlide;
     }
+    
+    //TODO: implement getKey
+    
+    //TODO: implement getScale
     
 private:
 //    void SetScale();
