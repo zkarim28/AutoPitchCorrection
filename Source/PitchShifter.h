@@ -1,5 +1,5 @@
-#ifndef PITCHSHIFTER
-#define PITCHSHIFTER
+#ifndef __PITCHSHIFTER__
+#define __PITCHSHIFTER__
 //#include "IPlug_include_in_plug_hdr.h"
 //#include "IPopupMenuControl.h"
 #include "fftsetup.h"
@@ -20,13 +20,20 @@ public:
     
   PitchShifter()
   {
-      fMix = 0.5;
-      fTune = 0.1;
-      fAmount = 1.0;
-      fGlide = 0.1;
+      // These set of numbers sound good.
+      //based on the original onParamChange func from AutoTalent.Cpp,
+      fMix = 0.9; //fMix = GetParam(kMix)->Value() / 100.;
+      fTune = 0.9; //fTune = GetParam(kTune)->Value() / 100. ;
+      fAmount = 0.9; //fAmount = GetParam(kAmount)->Value() / 100.;
+      
+      //represented by glider knob from 0 to 1000ms
+      fGlide = 0.5; //fGlide = GetParam(kGlide)->Value() / 1000.;
+      
+      
+      fShift = 1.0; //fShift = GetParam(kShift)->Value();
 
       for (int i = 0; i < 12; ++i) {
-          fNotes[i] = 1.0;
+          fNotes[i] = .5;
       }
       
       //Previously, the constructor was filled with IGraphics initalizations for each knob
@@ -54,7 +61,7 @@ public:
 //      IMutexLock lock(this);
       
 //      unsigned long sr = GetSampleRate();
-      unsigned long sr = originalSampleRate;
+      unsigned long sr = fs;
     
     if( fs != sr) init(sr);
   }
@@ -363,225 +370,9 @@ void OnParamChange(int paramIdx)
         }
     }
 
-    
-//  void ProcessDoubleReplacing(double** inputs, double** outputs, int nFrames)
-//  {
-//    double* in1 = inputs[0];
-//    double* out1 = outputs[0];
-//    double* out2 = outputs[1];
-//    float fPersist = glidepersist;
-//    
-//    aref = (float)440*pow(2,fTune/12);
-//          
-//    unsigned long N = cbsize;
-//    unsigned long Nf = corrsize;
-//    
-//    long int ti;
-//    long int ti2;
-//    long int ti3;
-//    float tf;
-//    float tf2;
-//    float tf3;
-//    
-//    for (int s = 0; s < nFrames; ++s, ++in1, ++out1, ++out2)
-//    {
-//      tf = (float) *in1;
-//      cbi[cbiwr] = tf;
-//      cbiwr++;
-//      if (cbiwr >= N) {
-//        cbiwr = 0;
-//      }
-//
-//      if ((cbiwr)%(N/noverlap) == 0) {
-//        ti2 = (long) cbiwr;
-//        for (ti=0; ti<(long)N; ti++) {
-//          ffttime[ti] = (float)(cbi[(ti2-ti)%N]*cbwindow[ti]);
-//        }
-//        
-//        fft_forward(fmembvars, ffttime, fftfreqre, fftfreqim);
-//        fftfreqre[0] = 0;
-//        fftfreqim[0] = 0;
-//        
-//        for (ti=1; ti< (long)Nf; ti++) {
-//          fftfreqre[ti] = (fftfreqre[ti])*(fftfreqre[ti]) + (fftfreqim[ti])*(fftfreqim[ti]);
-//          fftfreqim[ti] = 0;
-//        }
-//        
-//        fft_inverse(fmembvars, fftfreqre, fftfreqim, ffttime);
-//        for (ti=1; ti<(long)N; ti++) {
-//          ffttime[ti] = ffttime[ti] / ffttime[0];
-//        }
-//        ffttime[0] = 1;
-//
-//        tf2 = 0;
-//        pperiod = pmin;
-//        for (ti=nmin; ti<(long)nmax; ti++) {
-//          ti2 = ti-1;
-//          ti3 = ti+1;
-//          if (ti2<0) {
-//            ti2 = 0;
-//          }
-//          if (ti3>(long)Nf) {
-//            ti3 = Nf;
-//          }
-//          tf = ffttime[ti];
-//          
-//          if (tf>ffttime[ti2] && tf>=ffttime[ti3] && tf>tf2) {
-//            tf2 = tf;
-//            conf = tf*acwinv[ti];
-//            pperiod = (float)ti/fs;
-//          }
-//        }
-//        
-//        pitch = (float) -12*log10((float)aref*pperiod)*L2SC;
-//        pitch = pitch;
-//        pperiod = pperiod;
-//        conf = conf;
-//        
-//        if (conf>=vthresh) {
-//          tf = -1;
-//          tf2 = 0;
-//          tf3 = 0;
-//          for (ti=0; ti<12; ti++) {
-//            switch (ti) {
-//              case 0:
-//                tf2 = fNotes[9];
-//                break;
-//              case 1:
-//                tf2 = fNotes[10];
-//                break;
-//              case 2:
-//                tf2 = fNotes[11];
-//                break;
-//              case 3:
-//                tf2 = fNotes[0];
-//                break;
-//              case 4:
-//                tf2 = fNotes[1];
-//                break;
-//              case 5:
-//                tf2 = fNotes[2];
-//                break;
-//              case 6:
-//                tf2 = fNotes[3];
-//                break;
-//              case 7:
-//                tf2 = fNotes[4];
-//                break;
-//              case 8:
-//                tf2 = fNotes[5];
-//                break;
-//              case 9:
-//                tf2 = fNotes[6];
-//                break;
-//              case 10:
-//                tf2 = fNotes[7];
-//                break;
-//              case 11:
-//                tf2 = fNotes[8];
-//                break;
-//            }
-//            tf2 = tf2 - (float)fabs( (pitch-(float)ti)/6 - 2*floorf(((pitch-(float)ti)/12 + 0.5)) );
-//            if (tf2>=tf) {
-//              tf3 = (float)ti;
-//              tf = tf2;
-//            }
-//          }
-//          ptarget = tf3;
-//          
-//          if (wasvoiced == 0) {
-//            wasvoiced = 1;
-//            tf = persistamt;
-//            sptarget = (1-tf)*ptarget + tf*sptarget;
-//            persistamt = 1;
-//          }
-//          
-//          tf3 = (float)ptarget - sptarget;
-//          tf3 = tf3 - (float)12*floorf(tf3/12 + 0.5);
-//          if (fGlide>0) {
-//            tf2 = (float)1-pow((float)1/24, (float)N * 1000/ (noverlap*fs*fGlide));
-//          }
-//          else {
-//            tf2 = 1;
-//          }
-//          sptarget = sptarget + tf3*tf2;
-//        }
-//        else {
-//          wasvoiced = 0;
-//          if (fPersist>0) {
-//            tf = pow((float)1/2, (float)N * 1000/ (noverlap*fs*fPersist));
-//          }
-//          else {
-//            tf = 0;
-//          }
-//          persistamt = persistamt * tf;
-//        }
-//        
-//        tf = sptarget - pitch;
-//        tf = tf - (float)12*floorf(tf/12 + 0.5);
-//        if (conf<vthresh) {
-//          tf = 0;
-//        }
-//        lrshift = fShift + fAmount*tf;
-//        
-//        phincfact = (float)pow(2, lrshift/12);
-//        if (conf>=vthresh) {
-//          phinc = (float)1/(pperiod*fs);
-//          phprd = pperiod*2;
-//        }
-//      }
-//
-//      phasein = phasein + phinc;
-//      phaseout = phaseout + phinc*phincfact;
-//      
-//      if (phasein >= 1) {
-//        phasein = phasein - 1;
-//        ti2 = cbiwr - (long int)N/2;
-//        for (ti=-((long int)N)/2; ti<(long int)N/2; ti++) {
-//          frag[ti%N] = cbi[(ti + ti2)%N];
-//        }
-//      }
-//
-//      if (phaseout >= 1) {
-//        fragsize = fragsize*2;
-//        if (fragsize >= N) {
-//          fragsize = N;
-//        }
-//        phaseout = phaseout - 1;
-//        ti2 = cbord + N/2;
-//        ti3 = (long int)(((float)fragsize) / phincfact);
-//        for (ti=-ti3/2; ti<(ti3/2); ti++) {
-//          tf = hannwindow[(long int)N/2 + ti*(long int)N/ti3];
-//          cbo[(ti + ti2)%N] = cbo[(ti + ti2)%N] + frag[((int)(phincfact*ti))%N]*tf;
-//          cbonorm[(ti + ti2)%N] = cbonorm[(ti + ti2)%N] + tf;
-//        }
-//        fragsize = 0;
-//      }
-//      fragsize++;
-//      
-//      tf = cbonorm[cbord];
-//      if (tf>0.5) {
-//        tf = (float)1/tf;
-//      }
-//      else {
-//        tf = 1;
-//      }
-//      tf = tf*cbo[cbord];
-//      tf = cbo[cbord];
-//      cbo[cbord] = 0;
-//      cbonorm[cbord] = 0;
-//      cbord++;
-//      if (cbord >= N) {
-//        cbord = 0;
-//      }
-//      
-//      *out1 = *out2 = (double) fMix*tf + (1-fMix)*cbi[(cbiwr - N + 1)%N];
-//    }
-//  }
-
   void init(unsigned long sr)
   {
-      originalSampleRate = sr;
+    originalSampleRate = sr;
     unsigned long ti;
     
     fs = sr;
