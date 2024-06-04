@@ -5,7 +5,7 @@ http://crca.ucsd.edu/~msp/software.html */
 /*
 ** FFT and FHT routines
 **  Copyright 1988, 1993; Ron Mayer
-**  
+**
 **  mayer_fht(fz,n);
 **      Does a hartley transform of "n" points in the array "fz".
 **  mayer_fft(n,real,imag)
@@ -21,8 +21,8 @@ http://crca.ucsd.edu/~msp/software.html */
 **      transform ends up in the second half of the array.
 **  mayer_realifft(n,real)
 **      The inverse of the realfft() routine above.
-**      
-**      
+**
+**
 ** NOTE: This routine uses at least 2 patented algorithms, and may be
 **       under the restrictions of a bunch of different organizations.
 **       Although I wrote it completely myself, it is kind of a derivative
@@ -242,9 +242,9 @@ REAL c1,s1,s2,c2,s3,c3,s4,c4;
              f0     = fi[0 ]+fi[1 ];
              f3     = fi[2 ]-fi[3 ];
              f2     = fi[2 ]+fi[3 ];
-             fi[2 ] = (f0-f2);  
+             fi[2 ] = (f0-f2);
              fi[0 ] = (f0+f2);
-             fi[3 ] = (f1-f3);  
+             fi[3 ] = (f1-f3);
              fi[1 ] = (f1+f3);
             }
     }
@@ -262,13 +262,13 @@ REAL c1,s1,s2,c2,s3,c3,s4,c4;
              bs3     = fi[4 ] + gi[4 ];
              bc4     = fi[6 ] - gi[6 ];
              bs4     = fi[6 ] + gi[6 ];
-             bf1     = (bs1 - bs2);     
+             bf1     = (bs1 - bs2);
              bf0     = (bs1 + bs2);
-             bg1     = (bc1 - bc2);     
+             bg1     = (bc1 - bc2);
              bg0     = (bc1 + bc2);
-             bf3     = (bs3 - bs4);     
+             bf3     = (bs3 - bs4);
              bf2     = (bs3 + bs4);
-             bg3     = SQRT2*bc4;               
+             bg3     = SQRT2*bc4;
              bg2     = SQRT2*bc3;
              fi[4 ] = bf0 - bf2;
              fi[0 ] = bf0 + bf2;

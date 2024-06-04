@@ -22,7 +22,6 @@ AutoPitchCorrectionAudioProcessor::AutoPitchCorrectionAudioProcessor()
                        )
 #endif
 {
-    pitchShifter.init(pitchShifter.fs);
 }
 
 AutoPitchCorrectionAudioProcessor::~AutoPitchCorrectionAudioProcessor()
@@ -96,7 +95,7 @@ void AutoPitchCorrectionAudioProcessor::prepareToPlay (double sampleRate, int sa
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
-    pitchShifter.fs = sampleRate;
+    pitchShifter.init (sampleRate);
 }
 
 void AutoPitchCorrectionAudioProcessor::releaseResources()
@@ -155,16 +154,16 @@ void AutoPitchCorrectionAudioProcessor::processBlock (juce::AudioBuffer<float>& 
     //    for (int channel = 0; channel < totalNumInputChannels; ++channel)
     //    {
     //        auto* channelData = buffer.getWritePointer (channel);
-    float* channelDataLeft = buffer.getWritePointer(0);
-    float* channelDataRight = buffer.getWritePointer(1);
+    const float* input = buffer.getReadPointer (0);
+    float* output1 = buffer.getWritePointer(0);
+    float* output2 = buffer.getWritePointer(1);
     int numSamples = buffer.getNumSamples();
     
-    std::vector<double*> inputs = { reinterpret_cast<double*>(channelDataLeft) };
-    std::vector<double*> outputs = { reinterpret_cast<double*>(channelDataLeft), reinterpret_cast<double*>(channelDataRight) };
+    std::vector<const float*> inputs = { reinterpret_cast<const float*>(input)};
+    std::vector<float*> outputs = { reinterpret_cast<float*>(output1), reinterpret_cast<float*>(output2)};
     
-    pitchShifter.ProcessDoubleReplacing(inputs.data(), outputs.data(), numSamples);
+    pitchShifter.ProcessFloatReplacing (inputs.data(), outputs.data(), numSamples);
 }
-
 
 //==============================================================================
 bool AutoPitchCorrectionAudioProcessor::hasEditor() const

@@ -30,7 +30,7 @@ void AutoPitchCorrectionAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colours::white);
     g.setFont (15.0f);
-    g.drawFittedText ("AutoPitchCorrectionJune4th", getLocalBounds(), juce::Justification::centred, 1);
+    g.drawFittedText ("AutoTune", getLocalBounds(), juce::Justification::centred, 1);
 }
 
 void AutoPitchCorrectionAudioProcessorEditor::resized()
