@@ -7,30 +7,28 @@
     Quilio Software uses a commercial licence     -     see LICENCE.md for details.
 */
 
-
 #ifndef __PITCHSHIFTER__
 #define __PITCHSHIFTER__
 #include "fftsetup.h"
 #include "mayer_fft.c"
-//#include "Scales.h"
+#include "Scales.h"
 #include <math.h>
 
 #define L2SC (float)3.32192809488736218171
 
-class PitchShifter //: public IPlug
+class PitchShifter
 {
 public:
     
-    //Added these two vars
-    unsigned long originalSampleRate; //Replacement for GetSampleRate();
+    unsigned long originalSampleRate;
     unsigned long fs; // Sample rate
     
     PitchShifter()
     {
-        for (int i = 0; i < 12; ++i) {
-            fNotes[i] = 1;
-        }
         init(fs);
+        
+        //By default we have root of C and scale is Chromatic
+        setScale(scales.NoteC, scales.Chromatic);
     }
     
     ~PitchShifter()
@@ -51,149 +49,110 @@ public:
         float* out1 = outputs[0];
         float* out2 = outputs[1];
         float fPersist = glidepersist;
-        
+
         aref = (float)440 * pow(2, fTune / 12);
-        
+
         unsigned long N = cbsize;
         unsigned long Nf = corrsize;
-        
-        long int ti;
-        long int ti2;
-        long int ti3;
-        float tf;
-        float tf2;
-        float tf3;
-        
+
+        long int ti, ti2, ti3;
+        float tf, tf2, tf3;
+
         for (int s = 0; s < nFrames; ++s)
         {
-            // load data into circular buffer
-            tf = (float) in1[s];
+            // Load data into circular buffer
+            tf = (float)in1[s];
             circularBuffer[cBufferWriteIndex] = tf;
             cBufferWriteIndex++;
             if (cBufferWriteIndex >= N) {
                 cBufferWriteIndex = 0;
             }
-            
+
             // ********************
             // * Low-rate section *
             // ********************
-            
+
             // Every N/noverlap samples, run pitch estimation / correction code
             if ((cBufferWriteIndex) % (N / noverlap) == 0)
             {
-                
                 // ---- Obtain autocovariance ----
-                
+
                 // Window and fill FFT buffer
                 ti2 = (long)cBufferWriteIndex;
                 for (ti = 0; ti < (long)N; ti++) {
                     ffttime[ti] = (float)(circularBuffer[(ti2 - ti) % N] * cbwindow[ti]);
                 }
-                
+
                 // Calculate FFT
                 fft_forward(fmembvars, ffttime.data(), fftfreqre.data(), fftfreqim.data());
-                
+
                 // Remove DC
                 fftfreqre[0] = 0;
                 fftfreqim[0] = 0;
-                
+
                 // Take magnitude squared
                 for (ti = 1; ti < (long)Nf; ti++) {
                     fftfreqre[ti] = (fftfreqre[ti]) * (fftfreqre[ti]) + (fftfreqim[ti]) * (fftfreqim[ti]);
                     fftfreqim[ti] = 0;
                 }
-                
+
                 // Calculate IFFT
                 fft_inverse(fmembvars, fftfreqre.data(), fftfreqim.data(), ffttime.data());
-                
+
                 // Normalize
                 for (ti = 1; ti < (long)N; ti++) {
                     ffttime[ti] = ffttime[ti] / ffttime[0];
                 }
                 ffttime[0] = 1;
-                
-                //  ---- END Obtain autocovariance ----
-                
-                
-                //  ---- Calculate pitch and confidence ----
-                
+
+                // ---- END Obtain autocovariance ----
+
+                // ---- Calculate pitch and confidence ----
+
                 // Calculate pitch period
-                //   Pitch period is determined by the location of the max (biased)
-                //     peak within a given range
-                //   Confidence is determined by the corresponding unbiased height
                 tf2 = 0;
                 pperiod = pmin;
                 for (ti = nmin; ti < (long)nmax; ti++) {
                     ti2 = ti - 1;
                     ti3 = ti + 1;
-                    if (ti2 < 0) {
-                        ti2 = 0;
-                    }
-                    if (ti3 > (long)Nf) {
-                        ti3 = Nf;
-                    }
+                    if (ti2 < 0) ti2 = 0;
+                    if (ti3 > (long)Nf) ti3 = Nf;
                     tf = ffttime[ti];
-                    
+
                     if (tf > ffttime[ti2] && tf >= ffttime[ti3] && tf > tf2) {
                         tf2 = tf;
                         conf = tf * acwinv[ti];
                         pperiod = (float)ti / fs;
                     }
                 }
-                
+
                 // Convert to semitones
                 pitch = (float)-12 * log10((float)aref * pperiod) * L2SC;
-                
-                //  ---- END Calculate pitch and confidence ----
-                
-                
-                //  ---- Determine pitch target ----
-                
+
+                // ---- END Calculate pitch and confidence ----
+
+                // ---- Determine pitch target ----
+
                 // If voiced
                 if (conf >= vthresh) {
-                    // TODO: Scale sliders
                     // Determine pitch target
                     tf = -1;
                     tf2 = 0;
                     tf3 = 0;
                     for (ti = 0; ti < 12; ti++) {
                         switch (ti) {
-                            case 0:
-                                tf2 = fNotes[9];
-                                break;
-                            case 1:
-                                tf2 = fNotes[10];
-                                break;
-                            case 2:
-                                tf2 = fNotes[11];
-                                break;
-                            case 3:
-                                tf2 = fNotes[0];
-                                break;
-                            case 4:
-                                tf2 = fNotes[1];
-                                break;
-                            case 5:
-                                tf2 = fNotes[2];
-                                break;
-                            case 6:
-                                tf2 = fNotes[3];
-                                break;
-                            case 7:
-                                tf2 = fNotes[4];
-                                break;
-                            case 8:
-                                tf2 = fNotes[5];
-                                break;
-                            case 9:
-                                tf2 = fNotes[6];
-                                break;
-                            case 10:
-                                tf2 = fNotes[7];
-                                break;
-                            case 11:
-                                tf2 = fNotes[8];
-                                break;
+                            case 0: tf2 = fNotes[9]; break;
+                            case 1: tf2 = fNotes[10]; break;
+                            case 2: tf2 = fNotes[11]; break;
+                            case 3: tf2 = fNotes[0]; break;
+                            case 4: tf2 = fNotes[1]; break;
+                            case 5: tf2 = fNotes[2]; break;
+                            case 6: tf2 = fNotes[3]; break;
+                            case 7: tf2 = fNotes[4]; break;
+                            case 8: tf2 = fNotes[5]; break;
+                            case 9: tf2 = fNotes[6]; break;
+                            case 10: tf2 = fNotes[7]; break;
+                            case 11: tf2 = fNotes[8]; break;
                         }
                         tf2 = tf2 - (float)fabs((pitch - (float)ti) / 6 - 2 * floorf(((pitch - (float)ti) / 12 + 0.5)));
                         if (tf2 >= tf) {
@@ -202,7 +161,7 @@ public:
                         }
                     }
                     ptarget = tf3;
-                    
+
                     // Glide persist
                     if (wasvoiced == 0) {
                         wasvoiced = 1;
@@ -210,48 +169,34 @@ public:
                         sptarget = (1 - tf) * ptarget + tf * sptarget;
                         persistamt = 1;
                     }
-                    
+
                     // Glide on circular scale
                     tf3 = (float)ptarget - sptarget;
                     tf3 = tf3 - (float)12 * floorf(tf3 / 12 + 0.5);
-                    if (fGlide > 0) {
-                        tf2 = (float)1 - pow((float)1 / 24, (float)N * 1000 / (noverlap * fs * fGlide));
-                    }
-                    else {
-                        tf2 = 1;
-                    }
+                    tf2 = (fGlide > 0) ? (1 - pow((float)1 / 24, (float)N * 1000 / (noverlap * fs * fGlide))) : 1;
                     sptarget = sptarget + tf3 * tf2;
                 }
                 // If not voiced
                 else {
                     wasvoiced = 0;
-                    
-                    // Keep track of persist amount
-                    if (fPersist > 0) {
-                        tf = pow((float)1 / 2, (float)N * 1000 / (noverlap * fs * fPersist));
-                    }
-                    else {
-                        tf = 0;
-                    }
+                    tf = (fPersist > 0) ? pow((float)1 / 2, (float)N * 1000 / (noverlap * fs * fPersist)) : 0;
                     persistamt = persistamt * tf; // Persist amount decays exponentially
                 }
                 // END If voiced
-                
-                //  ---- END Determine pitch target ----
-                
-                
+
+                // ---- END Determine pitch target ----
+
                 // ---- Determine correction to feed to the pitch shifter ----
                 tf = sptarget - pitch; // Correction amount
                 tf = tf - (float)12 * floorf(tf / 12 + 0.5); // Never do more than +- 6 semitones of correction
                 if (conf < vthresh) {
                     tf = 0;
                 }
-                lrshift = fShift + fAmount * tf;  // Add in pitch shift slider
-                
-                
-                // ---- Compute variables for pitch shifter that depend on pitch ---
+                lrshift = fShift + fAmount * tf; // Add in pitch shift slider
+
+                // ---- Compute variables for pitch shifter that depend on pitch ----
                 phincfact = (float)pow(2, lrshift / 12);
-                if (conf >= vthresh) {  // Keep old period when unvoiced
+                if (conf >= vthresh) {
                     phinc = (float)1 / (pperiod * fs);
                     phprd = pperiod * 2;
                 }
@@ -259,34 +204,16 @@ public:
             // ************************
             // * END Low-Rate Section *
             // ************************
-            
-            
+
             // *****************
             // * Pitch Shifter *
             // *****************
-            
-            // TODO: Pre-filter with some kind of filter (maybe cheby2 or just svf)
-            // TODO: Use cubic spline interpolation
-            
-            // IMPROVE QUALITY OF PITCH SHIFTER!
-            // what is the glitch at "lAaAack"? probably pitch shifter
-            
-            //   Better snippet management
-            //   Pre-filter
-            //   Cubic spline interp
+
             // Pitch shifter (overlap-add, pitch synchronous)
-            //   Note: pitch estimate is naturally N/2 samples old
             phasein = phasein + phinc;
             phaseout = phaseout + phinc * phincfact;
-            
-            //   If it happens that there are no snippets placed at the output, grab a new snippet!
-            /*     if (cbonorm[((long int)cbord + (long int)(N/2*(1 - (float)1 / phincfact)))%N] < 0.2) { */
-            /*       fprintf(stderr, "help!"); */
-            /*       phasein = 1; */
-            /*       phaseout = 1; */
-            /*     } */
-            
-            //   When input phase resets, take a snippet from N/2 samples in the past
+
+            // When input phase resets, take a snippet from N/2 samples in the past
             if (phasein >= 1) {
                 phasein = phasein - 1;
                 ti2 = cBufferWriteIndex - (long int)N / 2;
@@ -294,8 +221,8 @@ public:
                     frag[ti % N] = circularBuffer[(ti + ti2) % N];
                 }
             }
-            
-            //   When output phase resets, put a snippet N/2 samples in the future
+
+            // When output phase resets, put a snippet N/2 samples in the future
             if (phaseout >= 1) {
                 fragsize = fragsize * 2;
                 if (fragsize >= N) {
@@ -312,37 +239,328 @@ public:
                 fragsize = 0;
             }
             fragsize++;
-            
-            //   Get output signal from buffer
+
+            // Get output signal from buffer and normalize
             tf = cbonorm[cbord];
-            //   Normalize
-            if (tf > 0.5) {
-                tf = (float)1 / tf;
-            }
-            else {
-                tf = 1;
-            }
+            tf = (tf > 0.5) ? (float)1 / tf : 1;
             tf = tf * cbo[cbord]; // read buffer
             tf = cbo[cbord];
             cbo[cbord] = 0; // erase for next cycle
             cbonorm[cbord] = 0;
-            cbord++; // increment read pointer
+            cbord++;
             if (cbord >= N) {
                 cbord = 0;
             }
-            
+
             // *********************
             // * END Pitch Shifter *
             // *********************
-            
-            
+
             // Write audio to output of plugin
-            // Mix (blend between original (delayed) =0 and shifted/corrected =1)
-            // Mix Processing happnens here
-            out1[s] = (double)fMix  * tf +  (1.0 - fMix) * circularBuffer[(cBufferWriteIndex - N + 1) % N];
-            out2[s] = (double)fMix  * tf +  (1.0 - fMix) * circularBuffer[(cBufferWriteIndex - N + 1) % N];
+            out1[s] = (double)fMix * tf + (1.0 - fMix) * circularBuffer[(cBufferWriteIndex - N + 1) % N];
+            out2[s] = (double)fMix * tf + (1.0 - fMix) * circularBuffer[(cBufferWriteIndex - N + 1) % N];
         }
     }
+
+    
+//    void ProcessFloatReplacing(const float** inputs, float** outputs, int nFrames)
+//    {
+//        const float* in1 = inputs[0];
+//        float* out1 = outputs[0];
+//        float* out2 = outputs[1];
+//        float fPersist = glidepersist;
+//        
+//        aref = (float)440 * pow(2, fTune / 12);
+//        
+//        unsigned long N = cbsize;
+//        unsigned long Nf = corrsize;
+//        
+//        long int ti;
+//        long int ti2;
+//        long int ti3;
+//        float tf;
+//        float tf2;
+//        float tf3;
+//        
+//        for (int s = 0; s < nFrames; ++s)
+//        {
+//            // load data into circular buffer
+//            tf = (float) in1[s];
+//            circularBuffer[cBufferWriteIndex] = tf;
+//            cBufferWriteIndex++;
+//            if (cBufferWriteIndex >= N) {
+//                cBufferWriteIndex = 0;
+//            }
+//            
+//            // ********************
+//            // * Low-rate section *
+//            // ********************
+//            
+//            // Every N/noverlap samples, run pitch estimation / correction code
+//            if ((cBufferWriteIndex) % (N / noverlap) == 0)
+//            {
+//                
+//                // ---- Obtain autocovariance ----
+//                
+//                // Window and fill FFT buffer
+//                ti2 = (long)cBufferWriteIndex;
+//                for (ti = 0; ti < (long)N; ti++) {
+//                    ffttime[ti] = (float)(circularBuffer[(ti2 - ti) % N] * cbwindow[ti]);
+//                }
+//                
+//                // Calculate FFT
+//                fft_forward(fmembvars, ffttime.data(), fftfreqre.data(), fftfreqim.data());
+//                
+//                // Remove DC
+//                fftfreqre[0] = 0;
+//                fftfreqim[0] = 0;
+//                
+//                // Take magnitude squared
+//                for (ti = 1; ti < (long)Nf; ti++) {
+//                    fftfreqre[ti] = (fftfreqre[ti]) * (fftfreqre[ti]) + (fftfreqim[ti]) * (fftfreqim[ti]);
+//                    fftfreqim[ti] = 0;
+//                }
+//                
+//                // Calculate IFFT
+//                fft_inverse(fmembvars, fftfreqre.data(), fftfreqim.data(), ffttime.data());
+//                
+//                // Normalize
+//                for (ti = 1; ti < (long)N; ti++) {
+//                    ffttime[ti] = ffttime[ti] / ffttime[0];
+//                }
+//                ffttime[0] = 1;
+//                
+//                //  ---- END Obtain autocovariance ----
+//                
+//                
+//                //  ---- Calculate pitch and confidence ----
+//                
+//                // Calculate pitch period
+//                //   Pitch period is determined by the location of the max (biased)
+//                //     peak within a given range
+//                //   Confidence is determined by the corresponding unbiased height
+//                tf2 = 0;
+//                pperiod = pmin;
+//                for (ti = nmin; ti < (long)nmax; ti++) {
+//                    ti2 = ti - 1;
+//                    ti3 = ti + 1;
+//                    if (ti2 < 0) {
+//                        ti2 = 0;
+//                    }
+//                    if (ti3 > (long)Nf) {
+//                        ti3 = Nf;
+//                    }
+//                    tf = ffttime[ti];
+//                    
+//                    if (tf > ffttime[ti2] && tf >= ffttime[ti3] && tf > tf2) {
+//                        tf2 = tf;
+//                        conf = tf * acwinv[ti];
+//                        pperiod = (float)ti / fs;
+//                    }
+//                }
+//                
+//                // Convert to semitones
+//                pitch = (float)-12 * log10((float)aref * pperiod) * L2SC;
+//                
+//                //  ---- END Calculate pitch and confidence ----
+//                
+//                
+//                //  ---- Determine pitch target ----
+//                
+//                // If voiced
+//                if (conf >= vthresh) {
+//                    // TODO: Scale sliders
+//                    // Determine pitch target
+//                    tf = -1;
+//                    tf2 = 0;
+//                    tf3 = 0;
+//                    for (ti = 0; ti < 12; ti++) {
+//                        switch (ti) {
+//                            case 0:
+//                                tf2 = fNotes[9];
+//                                break;
+//                            case 1:
+//                                tf2 = fNotes[10];
+//                                break;
+//                            case 2:
+//                                tf2 = fNotes[11];
+//                                break;
+//                            case 3:
+//                                tf2 = fNotes[0];
+//                                break;
+//                            case 4:
+//                                tf2 = fNotes[1];
+//                                break;
+//                            case 5:
+//                                tf2 = fNotes[2];
+//                                break;
+//                            case 6:
+//                                tf2 = fNotes[3];
+//                                break;
+//                            case 7:
+//                                tf2 = fNotes[4];
+//                                break;
+//                            case 8:
+//                                tf2 = fNotes[5];
+//                                break;
+//                            case 9:
+//                                tf2 = fNotes[6];
+//                                break;
+//                            case 10:
+//                                tf2 = fNotes[7];
+//                                break;
+//                            case 11:
+//                                tf2 = fNotes[8];
+//                                break;
+//                        }
+//                        tf2 = tf2 - (float)fabs((pitch - (float)ti) / 6 - 2 * floorf(((pitch - (float)ti) / 12 + 0.5)));
+//                        if (tf2 >= tf) {
+//                            tf3 = (float)ti;
+//                            tf = tf2;
+//                        }
+//                    }
+//                    ptarget = tf3;
+//                    
+//                    // Glide persist
+//                    if (wasvoiced == 0) {
+//                        wasvoiced = 1;
+//                        tf = persistamt;
+//                        sptarget = (1 - tf) * ptarget + tf * sptarget;
+//                        persistamt = 1;
+//                    }
+//                    
+//                    // Glide on circular scale
+//                    tf3 = (float)ptarget - sptarget;
+//                    tf3 = tf3 - (float)12 * floorf(tf3 / 12 + 0.5);
+//                    if (fGlide > 0) {
+//                        tf2 = (float)1 - pow((float)1 / 24, (float)N * 1000 / (noverlap * fs * fGlide));
+//                    }
+//                    else {
+//                        tf2 = 1;
+//                    }
+//                    sptarget = sptarget + tf3 * tf2;
+//                }
+//                // If not voiced
+//                else {
+//                    wasvoiced = 0;
+//                    
+//                    // Keep track of persist amount
+//                    if (fPersist > 0) {
+//                        tf = pow((float)1 / 2, (float)N * 1000 / (noverlap * fs * fPersist));
+//                    }
+//                    else {
+//                        tf = 0;
+//                    }
+//                    persistamt = persistamt * tf; // Persist amount decays exponentially
+//                }
+//                // END If voiced
+//                
+//                //  ---- END Determine pitch target ----
+//                
+//                
+//                // ---- Determine correction to feed to the pitch shifter ----
+//                tf = sptarget - pitch; // Correction amount
+//                tf = tf - (float)12 * floorf(tf / 12 + 0.5); // Never do more than +- 6 semitones of correction
+//                if (conf < vthresh) {
+//                    tf = 0;
+//                }
+//                lrshift = fShift + fAmount * tf;  // Add in pitch shift slider
+//                
+//                
+//                // ---- Compute variables for pitch shifter that depend on pitch ---
+//                phincfact = (float)pow(2, lrshift / 12);
+//                if (conf >= vthresh) {  // Keep old period when unvoiced
+//                    phinc = (float)1 / (pperiod * fs);
+//                    phprd = pperiod * 2;
+//                }
+//            }
+//            // ************************
+//            // * END Low-Rate Section *
+//            // ************************
+//            
+//            
+//            // *****************
+//            // * Pitch Shifter *
+//            // *****************
+//            
+//            // TODO: Pre-filter with some kind of filter (maybe cheby2 or just svf)
+//            // TODO: Use cubic spline interpolation
+//            
+//            // IMPROVE QUALITY OF PITCH SHIFTER!
+//            // what is the glitch at "lAaAack"? probably pitch shifter
+//            
+//            //   Better snippet management
+//            //   Pre-filter
+//            //   Cubic spline interp
+//            // Pitch shifter (overlap-add, pitch synchronous)
+//            //   Note: pitch estimate is naturally N/2 samples old
+//            phasein = phasein + phinc;
+//            phaseout = phaseout + phinc * phincfact;
+//            
+//            //   If it happens that there are no snippets placed at the output, grab a new snippet!
+//            /*     if (cbonorm[((long int)cbord + (long int)(N/2*(1 - (float)1 / phincfact)))%N] < 0.2) { */
+//            /*       fprintf(stderr, "help!"); */
+//            /*       phasein = 1; */
+//            /*       phaseout = 1; */
+//            /*     } */
+//            
+//            //   When input phase resets, take a snippet from N/2 samples in the past
+//            if (phasein >= 1) {
+//                phasein = phasein - 1;
+//                ti2 = cBufferWriteIndex - (long int)N / 2;
+//                for (ti = -((long int)N) / 2; ti < (long int)N / 2; ti++) {
+//                    frag[ti % N] = circularBuffer[(ti + ti2) % N];
+//                }
+//            }
+//            
+//            //   When output phase resets, put a snippet N/2 samples in the future
+//            if (phaseout >= 1) {
+//                fragsize = fragsize * 2;
+//                if (fragsize >= N) {
+//                    fragsize = N;
+//                }
+//                phaseout = phaseout - 1;
+//                ti2 = cbord + N / 2;
+//                ti3 = (long int)(((float)fragsize) / phincfact);
+//                for (ti = -ti3 / 2; ti < (ti3 / 2); ti++) {
+//                    tf = hannwindow[(long int)N / 2 + ti * (long int)N / ti3];
+//                    cbo[(ti + ti2) % N] = cbo[(ti + ti2) % N] + frag[((int)(phincfact * ti)) % N] * tf;
+//                    cbonorm[(ti + ti2) % N] = cbonorm[(ti + ti2) % N] + tf;
+//                }
+//                fragsize = 0;
+//            }
+//            fragsize++;
+//            
+//            //   Get output signal from buffer
+//            tf = cbonorm[cbord];
+//            //   Normalize
+//            if (tf > 0.5) {
+//                tf = (float)1 / tf;
+//            }
+//            else {
+//                tf = 1;
+//            }
+//            tf = tf * cbo[cbord]; // read buffer
+//            tf = cbo[cbord];
+//            cbo[cbord] = 0; // erase for next cycle
+//            cbonorm[cbord] = 0;
+//            cbord++; // increment read pointer
+//            if (cbord >= N) {
+//                cbord = 0;
+//            }
+//            
+//            // *********************
+//            // * END Pitch Shifter *
+//            // *********************
+//            
+//            
+//            // Write audio to output of plugin
+//            // Mix (blend between original (delayed) =0 and shifted/corrected =1)
+//            // Mix Processing happnens here
+//            out1[s] = (double)fMix  * tf +  (1.0 - fMix) * circularBuffer[(cBufferWriteIndex - N + 1) % N];
+//            out2[s] = (double)fMix  * tf +  (1.0 - fMix) * circularBuffer[(cBufferWriteIndex - N + 1) % N];
+//        }
+//    }
     
     void init(unsigned long sr)
     {
@@ -453,9 +671,15 @@ public:
         fGlide = glideAmt;
     }
     
-    //TODO: implement setKey
-    
-    //TODO: implement setScale
+    void setScale(int root, int scale){
+        fRoot = root;
+        fScale = scale;
+      int sc[12];
+      scales.makeScale(root, scale, sc);
+      for (int i = 0; i< 12; i++) {
+          fNotes[i] = sc[i];
+      }
+    }
     
     float getMixAmount(){
         return fMix;
@@ -471,6 +695,12 @@ public:
     }
     float getGlideAmount(){
         return fGlide;
+    }
+    int getScale(){
+        return fScale;
+    }
+    int getRoot(){
+        return fRoot;
     }
     
     //TODO: implement getKey
@@ -496,7 +726,44 @@ private:
     
     float fNotes[12];
     
+    int fRoot;
+    
+    int fScale;
+    
+    enum ScaleNames{
+        Chromatic=0,
+        Major,
+        Minor,
+        Dorian,
+        Mixolydian,
+        Lydian,
+        Phrygian,
+        Locrian,
+        HarmonicMinor,
+        MelodicMinor,
+        MajorPentatonic,
+        MinorPentatonic,
+        MinorBlues
+    };
+    
+    enum Notes{
+        NoteC=0,
+        NoteDb,
+        NoteD,
+        NoteEb,
+        NoteE,
+        NoteF,
+        NoteGb,
+        NoteG,
+        NoteAb,
+        NoteA,
+        NoteBb,
+        NoteB
+    };
+    
     fft_vars* fmembvars; // member variables for fft routine
+    
+    Scales scales = Scales();
     
     unsigned long cbsize; // size of circular buffer
     unsigned long corrsize; // cbsize/2 + 1

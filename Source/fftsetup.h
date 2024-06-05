@@ -9,7 +9,6 @@
 
 #include "mayer_fft.h"
 
-
 // Variables for FFT routine
 typedef struct
 {
